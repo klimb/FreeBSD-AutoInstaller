@@ -13,7 +13,10 @@ Super fast no prompts auto installer that allows me to install FreeBSD, my Omarc
 On a FreeBSD host with a blank USB stick plugged in:
 
 ```sh
-./build-memstick.sh                       # generic install
+git clone https://github.com/klimb/FreeBSD-AutoInstaller.git
+cd FreeBSD-AutoInstaller
+
+# pick your laptop
 ./build-memstick.sh thinkpad-nano-gen2    # ThinkPad X1 Nano Gen 2
 ./build-memstick.sh thinkpad-t14-gen1     # ThinkPad T14 Gen 1 (Intel)
 ./build-memstick.sh thinkpad-t480         # ThinkPad T480
