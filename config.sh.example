@@ -1,0 +1,24 @@
+# Optional overrides for build-memstick.sh.
+# The script works with zero config; only create this file if you want
+# to change something. Any variable defined at the top of
+# build-memstick.sh can be overridden here.
+#
+# FBSD_VERSION="15.1-RELEASE"
+# FBSD_ARCH="amd64"
+# PKG_REPO_BRANCH="latest"        # or "quarterly"
+#
+# TARGET_DISK="ada0"              # ada0 SATA, nda0 NVMe, da0 USB
+# TARGET_FS="zfs"
+# TARGET_BOOT_TYPE="UEFI"
+# TARGET_IFCONFIG='ifconfig_DEFAULT="DHCP"'
+# TARGET_PACKAGES="sudo bash git vim-tiny"
+#
+# SSH_AUTHORIZED_KEYS="ssh-ed25519 AAAA... user@host"
+# PERMIT_ROOT_LOGIN="NO"
+#
+# DEFAULT_HOSTNAME="freebsd"
+# DEFAULT_ADMIN_USER="admin"
+# DEFAULT_ENCRYPT_DISK="Y"
+#
+# HARDWARE_PROFILE="thinkpad-nano-gen2"
+# POSTINSTALL_LAYERS="omarchy"

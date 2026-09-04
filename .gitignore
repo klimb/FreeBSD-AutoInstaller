@@ -1,0 +1,6 @@
+cache/
+config.sh
+*.img
+*.img.*
+CHECKSUM.*
+.DS_Store

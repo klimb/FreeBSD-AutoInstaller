@@ -1,0 +1,265 @@
+### FreeBSD-AutoInstaller — installerconfig
+### Rendered from installerconfig.template by build-memstick.sh.
+### Preamble runs in the installer environment; the "#!/bin/sh" section
+### below runs chrooted in the freshly installed target system.
+### bsdinstall preserves exported preamble variables across the chroot.
+
+# --------------------------------------------------------------------------
+# Preamble: beastie splash + interactive prompts on the target console.
+# --------------------------------------------------------------------------
+export nonInteractive="YES"
+export BSDINSTALL_DISTDIR="/usr/freebsd-dist"
+DISTRIBUTIONS="kernel.txz base.txz"
+
+TTY=/dev/tty
+have() { command -v "$1" >/dev/null 2>&1; }
+
+show_beastie() {
+    cat > "$TTY" <<'__BEASTIE_EOF__'
+
+
+                              ,        ,
+                             /(        )`
+                             \ \___   / |
+                             /- _  `-/  '
+                            (/\/ \ \   /\
+                            / /   | `    \
+                            O O   ) /    |
+                            `-^--'`<     '
+                           (_.)  _  )   /
+                            `.___/`    /
+                              `-----' /
+                 <----.     __ / __   \
+                 <----|====O)))==) \) /====
+                 <----'    `--' `.__,' \
+                              |        |
+                               \       /
+                         ______( (_  / \______
+                       ,'  ,-----'   |        \
+                       `--{__________)        \/
+
+                     FreeBSD  Zero-Touch  Installer
+
+__BEASTIE_EOF__
+}
+
+ask_input() {   # $1=prompt $2=default -> stdout=value
+    if have bsddialog; then
+        bsddialog --title "FreeBSD AutoInstaller" \
+                  --inputbox "$1" 10 60 "$2" 3>&1 1>&2 2>&3
+    else
+        printf '%s [%s]: ' "$1" "$2" > "$TTY"
+        IFS= read -r v < "$TTY" || v=""
+        [ -z "$v" ] && v="$2"
+        printf '%s' "$v"
+    fi
+}
+
+ask_password() {   # $1=prompt -> stdout=value (silent)
+    if have bsddialog; then
+        bsddialog --title "FreeBSD AutoInstaller" --insecure \
+                  --passwordbox "$1" 10 60 3>&1 1>&2 2>&3
+    else
+        stty -echo < "$TTY" 2>/dev/null || true
+        printf '%s: ' "$1" > "$TTY"
+        IFS= read -r v < "$TTY" || v=""
+        stty echo < "$TTY" 2>/dev/null || true
+        printf '\n' > "$TTY"
+        printf '%s' "$v"
+    fi
+}
+
+ask_password_confirmed() {   # $1=label -> stdout=value
+    while :; do
+        p1=$(ask_password "$1")
+        p2=$(ask_password "$1 (confirm)")
+        if [ -n "$p1" ] && [ "$p1" = "$p2" ]; then
+            printf '%s' "$p1"
+            return 0
+        fi
+        if have bsddialog; then
+            bsddialog --title "Mismatch" \
+                      --msgbox "Password was empty or did not match. Try again." 8 55
+        else
+            printf 'Password empty or did not match; try again.\n' > "$TTY"
+        fi
+    done
+}
+
+ask_yesno() {   # $1=prompt $2=default(Y|N) -> return 0 for yes, 1 for no
+    if have bsddialog; then
+        if [ "$2" = "N" ]; then
+            bsddialog --title "FreeBSD AutoInstaller" --defaultno \
+                      --yesno "$1" 8 60
+        else
+            bsddialog --title "FreeBSD AutoInstaller" \
+                      --yesno "$1" 8 60
+        fi
+        return $?
+    fi
+    printf '%s [%s/n]: ' "$1" "$2" > "$TTY"
+    IFS= read -r v < "$TTY" || v=""
+    [ -z "$v" ] && v="$2"
+    case "$v" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
+}
+
+# Install a bsddialog wrapper that returns the stored GELI passphrase for
+# bsdinstall's zfsboot passphrase prompt so the user types it only once.
+# With nonInteractive=YES the only remaining --passwordbox call in the auto
+# flow is the GELI one, so a blanket intercept is safe.
+install_geli_shim() {
+    real=$(command -v bsddialog) || return 0
+    [ -n "$real" ] || return 0
+    mkdir -p /tmp/aibin
+    umask 077
+    printf '%s' "$1" > /tmp/aibin/geli.pw
+    cat > /tmp/aibin/bsddialog <<SHIM
+#!/bin/sh
+for a in "\$@"; do
+    if [ "\$a" = "--passwordbox" ]; then
+        cat /tmp/aibin/geli.pw >&2
+        exit 0
+    fi
+done
+exec "$real" "\$@"
+SHIM
+    chmod 0555 /tmp/aibin/bsddialog
+    PATH="/tmp/aibin:$PATH"
+    export PATH
+}
+
+# ---- Splash + prompts -----------------------------------------------------
+show_beastie
+sleep 1
+
+TARGET_HOSTNAME=$(ask_input   "Hostname"                  "@@DEFAULT_HOSTNAME@@")
+TARGET_ADMIN_USER=$(ask_input "Admin username (in wheel)" "@@DEFAULT_ADMIN_USER@@")
+TARGET_ADMIN_PW=$(ask_password_confirmed "Password for admin user '$TARGET_ADMIN_USER'")
+
+if ask_yesno "Encrypt the disk with GELI?" "@@DEFAULT_ENCRYPT_DISK@@"; then
+    TARGET_GELI_PW=$(ask_password_confirmed "Disk encryption passphrase")
+    ZFSBOOT_GELI_ENCRYPTION=1
+    export ZFSBOOT_GELI_ENCRYPTION
+    install_geli_shim "$TARGET_GELI_PW"
+fi
+
+TARGET_WIFI_SSID=""
+TARGET_WIFI_PSK=""
+if ask_yesno "Configure Wi-Fi now?" "N"; then
+    TARGET_WIFI_SSID=$(ask_input "Wi-Fi SSID" "")
+    if [ -n "$TARGET_WIFI_SSID" ]; then
+        TARGET_WIFI_PSK=$(ask_password_confirmed "Wi-Fi passphrase for '$TARGET_WIFI_SSID'")
+    fi
+fi
+
+export TARGET_HOSTNAME TARGET_ADMIN_USER TARGET_ADMIN_PW
+export TARGET_WIFI_SSID TARGET_WIFI_PSK
+
+# ---- bsdinstall partitioning ---------------------------------------------
+export ZFSBOOT_DISKS="@@TARGET_DISK@@"
+export ZFSBOOT_BOOT_TYPE="@@TARGET_BOOT_TYPE@@"
+export PARTITIONS="@@TARGET_DISK@@"
+
+#!/bin/sh
+### -----------------------------------------------------------------------
+### Chroot phase — runs inside the freshly installed system.
+### Inherits from preamble: TARGET_HOSTNAME, TARGET_ADMIN_USER,
+### TARGET_ADMIN_PW, TARGET_WIFI_SSID, TARGET_WIFI_PSK.
+### root is locked; escalate from the admin user via doas/sudo.
+### -----------------------------------------------------------------------
+set -eu
+
+# ---- pkg(8) repo: latest vs quarterly -------------------------------------
+mkdir -p /usr/local/etc/pkg/repos
+cat > /usr/local/etc/pkg/repos/FreeBSD.conf <<__PKG_EOF__
+FreeBSD: {
+    url: "pkg+http://pkg.FreeBSD.org/\${ABI}/@@PKG_REPO_BRANCH@@",
+    mirror_type: "srv",
+    signature_type: "fingerprints",
+    fingerprints: "/usr/share/keys/pkg",
+    enabled: yes
+}
+__PKG_EOF__
+
+# ---- hostname & network ---------------------------------------------------
+sysrc hostname="$TARGET_HOSTNAME"
+sysrc @@TARGET_IFCONFIG@@
+@@DEFAULTROUTER_LINE@@
+@@RESOLVCONF_LINE@@
+
+# ---- root: lock; only wheel members can escalate --------------------------
+pw lock root
+
+# ---- admin user -----------------------------------------------------------
+if ! pw usershow "$TARGET_ADMIN_USER" >/dev/null 2>&1; then
+    pw useradd -n "$TARGET_ADMIN_USER" -c "Admin" -m -G wheel -s /bin/sh
+fi
+echo "$TARGET_ADMIN_PW" | pw usermod "$TARGET_ADMIN_USER" -h 0
+
+# ---- Wi-Fi (wpa_supplicant.conf) -----------------------------------------
+# Driver / interface wiring belongs in the hardware fragment.
+if [ -n "${TARGET_WIFI_SSID:-}" ]; then
+    umask 077
+    {
+        printf 'ctrl_interface=/var/run/wpa_supplicant\n'
+        printf 'eapol_version=2\n'
+        printf 'ap_scan=1\n'
+        printf 'fast_reauth=1\n\n'
+        printf 'network={\n'
+        printf '    ssid="%s"\n' "$TARGET_WIFI_SSID"
+        printf '    psk="%s"\n' "$TARGET_WIFI_PSK"
+        printf '    priority=5\n'
+        printf '}\n'
+    } > /etc/wpa_supplicant.conf
+    chmod 600 /etc/wpa_supplicant.conf
+fi
+
+# ---- SSH ------------------------------------------------------------------
+sysrc sshd_enable="YES"
+
+_install_keys_for() {
+    _u=$1; _h=$2
+    mkdir -p "$_h/.ssh"
+    cat > "$_h/.ssh/authorized_keys" <<'__SSH_KEYS_EOF__'
+@@SSH_AUTHORIZED_KEYS@@
+__SSH_KEYS_EOF__
+    chown -R "$_u:$_u" "$_h/.ssh"
+    chmod 700 "$_h/.ssh"
+    chmod 600 "$_h/.ssh/authorized_keys"
+}
+_install_keys_for root /root
+_install_keys_for "$TARGET_ADMIN_USER" "/home/$TARGET_ADMIN_USER"
+
+if [ "@@PERMIT_ROOT_LOGIN@@" = "YES" ]; then
+    sed -i '' -E 's/^#?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+else
+    sed -i '' -E 's/^#?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+fi
+sed -i '' -E 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sed -i '' -E 's/^#?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+
+# ---- base packages --------------------------------------------------------
+env ASSUME_ALWAYS_YES=YES pkg bootstrap -y || true
+if [ -n "@@TARGET_PACKAGES@@" ]; then
+    env ASSUME_ALWAYS_YES=YES pkg install -y @@TARGET_PACKAGES@@ || true
+fi
+
+# ---- wheel sudoers (if sudo present) --------------------------------------
+if pkg info -e sudo >/dev/null 2>&1; then
+    mkdir -p /usr/local/etc/sudoers.d
+    echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/wheel
+    chmod 440 /usr/local/etc/sudoers.d/wheel
+fi
+
+# ==========================================================================
+# Hardware profile fragment (empty when no -p passed at build time)
+# ==========================================================================
+@@HARDWARE_SETUP@@
+
+# ==========================================================================
+# Post-install layers (empty when none configured)
+# ==========================================================================
+@@POSTINSTALL_SETUP@@
+
+touch /var/log/autoinstall.done
+reboot
