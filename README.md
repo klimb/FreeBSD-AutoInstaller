@@ -15,6 +15,10 @@ On a FreeBSD host with a blank USB stick plugged in:
 ```sh
 sh build-memstick.sh                       # generic install
 sh build-memstick.sh thinkpad-nano-gen2    # ThinkPad X1 Nano Gen 2
+sh build-memstick.sh thinkpad-t14-gen1     # ThinkPad T14 Gen 1 (Intel)
+sh build-memstick.sh thinkpad-t480         # ThinkPad T480
+sh build-memstick.sh thinkpad-e15-gen2     # ThinkPad E15 Gen 2
+sh build-memstick.sh thinkpad-x230t        # ThinkPad X230 Tablet
 ```
 
 This will create a usb stick with automated FreeBSD installer just for your laptop.
