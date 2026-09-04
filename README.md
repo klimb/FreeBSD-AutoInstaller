@@ -13,12 +13,12 @@ Super fast no prompts auto installer that allows me to install FreeBSD, my Omarc
 On a FreeBSD host with a blank USB stick plugged in:
 
 ```sh
-sh build-memstick.sh                       # generic install
-sh build-memstick.sh thinkpad-nano-gen2    # ThinkPad X1 Nano Gen 2
-sh build-memstick.sh thinkpad-t14-gen1     # ThinkPad T14 Gen 1 (Intel)
-sh build-memstick.sh thinkpad-t480         # ThinkPad T480
-sh build-memstick.sh thinkpad-e15-gen2     # ThinkPad E15 Gen 2
-sh build-memstick.sh thinkpad-x230t        # ThinkPad X230 Tablet
+./build-memstick.sh                       # generic install
+./build-memstick.sh thinkpad-nano-gen2    # ThinkPad X1 Nano Gen 2
+./build-memstick.sh thinkpad-t14-gen1     # ThinkPad T14 Gen 1 (Intel)
+./build-memstick.sh thinkpad-t480         # ThinkPad T480
+./build-memstick.sh thinkpad-e15-gen2     # ThinkPad E15 Gen 2
+./build-memstick.sh thinkpad-x230t        # ThinkPad X230 Tablet
 ```
 
 This will create a usb stick with automated FreeBSD installer just for your laptop.
@@ -57,7 +57,7 @@ can't nuke the build host by accident.
 
 ## Example: ThinkPad X1 Nano Gen 2 profile
 
-`sh build-memstick.sh thinkpad-nano-gen2` gives you an installer that:
+`./build-memstick.sh thinkpad-nano-gen2` gives you an installer that:
 
 - Partitions the NVMe (`nda0`) as UEFI + ZFS + GELI.
 - Installs Intel Iris Xe KMS (`i915kms`, `drm-kmod`).
@@ -75,7 +75,7 @@ can't nuke the build host by accident.
 
 - **New machine:** add [profiles/mymachine.sh](profiles) setting
   `TARGET_DISK`, `DEFAULT_*`, `HARDWARE_PROFILE`, `POSTINSTALL_LAYERS`;
-  invoke with `sh build-memstick.sh mymachine`. Verified per-model
+  invoke with `./build-memstick.sh mymachine`. Verified per-model
   `rc.conf`/`loader.conf`/`dmesg` data lives in
   [`klimb/bsd-laptops`](https://github.com/klimb/bsd-laptops) — that's
   the reference source when authoring a new profile.
