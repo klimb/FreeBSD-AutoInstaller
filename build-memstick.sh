@@ -159,20 +159,34 @@ trap cleanup EXIT INT TERM
 
 # ---- 1. Fetch + verify ----------------------------------------------------
 echo "[1/3] fetch $IMAGE_NAME"
-fetch -q -o "$CHECKSUM_PATH" "$CHECKSUM_URL"
 
-expected=$(awk -v f="($IMAGE_NAME)" '$2==f {print $4}' "$CHECKSUM_PATH")
-[ -n "$expected" ] || expected=$(grep -F "($IMAGE_NAME)" "$CHECKSUM_PATH" | awk '{print $NF}' | head -n 1)
-[ -n "$expected" ] || { echo "no checksum entry for $IMAGE_NAME" >&2; exit 1; }
-
-# skip the download entirely if a valid copy is already cached
-if [ -e "$IMAGE_PATH" ] && [ "$expected" = "$(sha256 -q "$IMAGE_PATH")" ]; then
-    echo "[+] using cached $IMAGE_NAME (checksum verified)"
+if [ -n "${SKIP_CHECKSUM_VERIFY:-}" ] && [ -e "$IMAGE_PATH" ]; then
+    # dev/test escape hatch only — never set this for a real install.
+    echo "[!] SKIP_CHECKSUM_VERIFY set: using cached $IMAGE_NAME unverified" >&2
 else
-    fetch -r -o "$IMAGE_PATH" "$IMAGE_URL"
+    fetch -q -o "$CHECKSUM_PATH" "$CHECKSUM_URL"
+
+    expected=$(awk -v f="($IMAGE_NAME)" '$2==f {print $4}' "$CHECKSUM_PATH")
+    [ -n "$expected" ] || expected=$(grep -F "($IMAGE_NAME)" "$CHECKSUM_PATH" | awk '{print $NF}' | head -n 1)
+    [ -n "$expected" ] || { echo "no checksum entry for $IMAGE_NAME" >&2; exit 1; }
+
+    # skip the download entirely if a valid copy is already cached
+    if [ -e "$IMAGE_PATH" ] && [ "$expected" = "$(sha256 -q "$IMAGE_PATH")" ]; then
+        echo "[+] using cached $IMAGE_NAME (checksum verified)"
+    else
+        fetch -r -o "$IMAGE_PATH" "$IMAGE_URL"
+        if [ "$expected" != "$(sha256 -q "$IMAGE_PATH")" ]; then
+            # cached file was same size as the real thing but corrupt (e.g. a
+            # bad prior resume) — `-r` treats matching size as "already done"
+            # and won't re-fetch it, so force a clean full re-download.
+            echo "[!] cached copy failed checksum after resume; re-fetching fresh" >&2
+            rm -f "$IMAGE_PATH"
+            fetch -o "$IMAGE_PATH" "$IMAGE_URL"
+        fi
+    fi
+    actual=$(sha256 -q "$IMAGE_PATH")
+    [ "$expected" = "$actual" ] || { echo "checksum mismatch (expected $expected got $actual)" >&2; exit 1; }
 fi
-actual=$(sha256 -q "$IMAGE_PATH")
-[ "$expected" = "$actual" ] || { echo "checksum mismatch (expected $expected got $actual)" >&2; exit 1; }
 
 # ---- 2. Inject ------------------------------------------------------------
 echo "[2/3] inject installerconfig"
