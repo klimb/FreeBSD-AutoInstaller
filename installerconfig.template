@@ -113,8 +113,11 @@ install_geli_shim() {
     mkdir -p /tmp/aibin
     umask 077
     printf '%s' "$1" > /tmp/aibin/geli.pw
-    cat > /tmp/aibin/bsddialog <<SHIM
-#!/bin/sh
+    # split the shebang so this line never literally matches "#!/bin/sh" —
+    # bsdinstall splits installerconfig at the FIRST such line, and one
+    # inside this heredoc would truncate our preamble prematurely.
+    printf '#!%s\n' "/bin/sh" > /tmp/aibin/bsddialog
+    cat >> /tmp/aibin/bsddialog <<SHIM
 for a in "\$@"; do
     if [ "\$a" = "--passwordbox" ]; then
         cat /tmp/aibin/geli.pw >&2
