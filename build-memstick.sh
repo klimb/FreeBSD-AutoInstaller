@@ -156,11 +156,17 @@ trap cleanup EXIT INT TERM
 # ---- 1. Fetch + verify ----------------------------------------------------
 echo "[1/3] fetch $IMAGE_NAME"
 fetch -q -o "$CHECKSUM_PATH" "$CHECKSUM_URL"
-fetch -r -o "$IMAGE_PATH" "$IMAGE_URL"
 
 expected=$(awk -v f="($IMAGE_NAME)" '$2==f {print $4}' "$CHECKSUM_PATH")
 [ -n "$expected" ] || expected=$(grep -F "($IMAGE_NAME)" "$CHECKSUM_PATH" | awk '{print $NF}' | head -n 1)
 [ -n "$expected" ] || { echo "no checksum entry for $IMAGE_NAME" >&2; exit 1; }
+
+# skip the download entirely if a valid copy is already cached
+if [ -e "$IMAGE_PATH" ] && [ "$expected" = "$(sha256 -q "$IMAGE_PATH")" ]; then
+    echo "[+] using cached $IMAGE_NAME (checksum verified)"
+else
+    fetch -r -o "$IMAGE_PATH" "$IMAGE_URL"
+fi
 actual=$(sha256 -q "$IMAGE_PATH")
 [ "$expected" = "$actual" ] || { echo "checksum mismatch (expected $expected got $actual)" >&2; exit 1; }
 
