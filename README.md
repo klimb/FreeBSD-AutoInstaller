@@ -6,17 +6,17 @@
 
 **Author:** Dmitry Kalashnikov
 
-Super fast no prompts auto installer that allows me to install FreeBSD, my Omarchy port and configure it as I like it. Its targeted for specific laptops (see bsd-laptops repo). We want complete end-to-end automation so everything works perfect on laptops.
+Super fast, no-prompts auto installer that allows me to install FreeBSD, my Omarchy port, and configure it as I like it. It's targeted at specific laptops (see bsd-laptops repo). We want complete end-to-end automation so everything works perfectly on laptops.
 
 ## Usage
 
-On a FreeBSD host with a blank USB stick plugged in:
+On a FreeBSD host with a USB stick plugged in, run:
 
 ```sh
 git clone https://github.com/klimb/FreeBSD-AutoInstaller.git
 cd FreeBSD-AutoInstaller
 
-# pick your laptop
+# pick your laptop model
 ./build-memstick.sh thinkpad-nano-gen2    # ThinkPad X1 Nano Gen 2
 ./build-memstick.sh thinkpad-t14-gen1     # ThinkPad T14 Gen 1 (Intel)
 ./build-memstick.sh thinkpad-t480         # ThinkPad T480
@@ -24,7 +24,7 @@ cd FreeBSD-AutoInstaller
 ./build-memstick.sh thinkpad-x230t        # ThinkPad X230 Tablet
 ```
 
-This will create a usb stick with automated FreeBSD installer just for your laptop.
+Done. Now plug this USB stick into your laptop and run the auto-installer.
 
 The script:
 
