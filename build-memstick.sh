@@ -156,7 +156,7 @@ trap cleanup EXIT INT TERM
 # ---- 1. Fetch + verify ----------------------------------------------------
 echo "[1/3] fetch $IMAGE_NAME"
 fetch -q -o "$CHECKSUM_PATH" "$CHECKSUM_URL"
-fetch -mr -o "$IMAGE_PATH" "$IMAGE_URL"
+fetch -r -o "$IMAGE_PATH" "$IMAGE_URL"
 
 expected=$(awk -v f="($IMAGE_NAME)" '$2==f {print $4}' "$CHECKSUM_PATH")
 [ -n "$expected" ] || expected=$(grep -F "($IMAGE_NAME)" "$CHECKSUM_PATH" | awk '{print $NF}' | head -n 1)
