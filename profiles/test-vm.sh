@@ -4,7 +4,8 @@
 
 TARGET_DISK="ada0"
 TARGET_FS="zfs"
-TARGET_BOOT_TYPE="UEFI"
+# BIOS, not UEFI: avoids needing OVMF firmware just to run the smoke test.
+TARGET_BOOT_TYPE="BIOS"
 TARGET_IFCONFIG='ifconfig_DEFAULT="DHCP"'
 
 DEFAULT_HOSTNAME="testvm"
