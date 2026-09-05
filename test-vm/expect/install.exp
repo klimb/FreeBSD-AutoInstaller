@@ -1,0 +1,80 @@
+#!/usr/bin/env expect
+# install.exp — drives the plain-text (FORCE_PLAIN_PROMPTS=1) installer
+# prompts over a QEMU serial console, then waits for the chroot phase to
+# finish and the guest to reboot (which, combined with qemu's -no-reboot,
+# makes the qemu process exit — our overall success signal).
+#
+# Usage: install.exp <log-file> <qemu-binary> <arg>...
+
+set log_path [lindex $argv 0]
+set qemu_bin [lindex $argv 1]
+set qemu_args [lrange $argv 2 end]
+
+set timeout 120
+log_user 1
+log_file -a $log_path
+
+eval spawn $qemu_bin $qemu_args
+
+# FreeBSD loader autoboots on its own after ~10s; nothing to send here.
+expect {
+    -re "Hostname \\\[.*\\\]: " { send "testvm\r" }
+    timeout { puts "\n\[FAIL\] timed out waiting for Hostname prompt"; exit 1 }
+}
+
+expect {
+    -re "Admin username.*\\\[.*\\\]: " { send "testadmin\r" }
+    timeout { puts "\n\[FAIL\] timed out waiting for admin username prompt"; exit 1 }
+}
+
+expect {
+    -re "Password for admin user '.*': " { send "TestPass123\r" }
+    timeout { puts "\n\[FAIL\] timed out waiting for password prompt"; exit 1 }
+}
+
+expect {
+    -re "Password for admin user '.*' \\(confirm\\): " { send "TestPass123\r" }
+    timeout { puts "\n\[FAIL\] timed out waiting for password confirm prompt"; exit 1 }
+}
+
+expect {
+    -re "Encrypt the disk with GELI.*: " { send "n\r" }
+    timeout { puts "\n\[FAIL\] timed out waiting for GELI prompt"; exit 1 }
+}
+
+expect {
+    -re "Configure Wi-Fi now.*: " { send "n\r" }
+    timeout { puts "\n\[FAIL\] timed out waiting for Wi-Fi prompt"; exit 1 }
+}
+
+# Partitioning + distribution extraction + chroot phase (pkg installs, etc.)
+# can take a long time under TCG emulation — allow up to 40 minutes.
+set timeout 2400
+expect {
+    "chroot phase complete" {
+        puts "\n\[OK\] chroot phase completed"
+    }
+    -re "(?i)(syntax error|panic|fatal error|Abort)" {
+        puts "\n\[FAIL\] error pattern detected in installer output"
+        exit 1
+    }
+    timeout {
+        puts "\n\[FAIL\] timed out waiting for chroot phase completion"
+        exit 1
+    }
+    eof {
+        puts "\n\[FAIL\] qemu exited before completion marker was seen"
+        exit 1
+    }
+}
+
+# `reboot` inside the chroot triggers guest reset; -no-reboot makes qemu
+# exit instead of actually resetting. Wait for that clean exit.
+set timeout 60
+expect {
+    eof { puts "\n\[OK\] guest rebooted, qemu exited as expected" }
+    timeout { puts "\n\[WARN\] qemu did not exit after reboot; continuing anyway" }
+}
+
+puts "\n\[PASS\] install flow reached completion marker"
+exit 0

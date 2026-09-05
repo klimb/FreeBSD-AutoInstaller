@@ -4,3 +4,4 @@ config.sh
 *.img.*
 CHECKSUM.*
 .DS_Store
+test-vm/out/

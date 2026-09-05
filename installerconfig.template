@@ -12,7 +12,10 @@ export BSDINSTALL_DISTDIR="/usr/freebsd-dist"
 DISTRIBUTIONS="kernel.txz base.txz"
 
 TTY=/dev/tty
-have() { command -v "$1" >/dev/null 2>&1; }
+have() {
+    [ "$1" = bsddialog ] && [ "@@FORCE_PLAIN_PROMPTS@@" = "1" ] && return 1
+    command -v "$1" >/dev/null 2>&1
+}
 
 show_beastie() {
     cat > "$TTY" <<'__BEASTIE_EOF__'
@@ -264,5 +267,6 @@ fi
 # ==========================================================================
 @@POSTINSTALL_SETUP@@
 
+echo "[+] chroot phase complete"
 touch /var/log/autoinstall.done
 reboot

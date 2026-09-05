@@ -42,6 +42,10 @@ DEFAULT_ENCRYPT_DISK="Y"
 HARDWARE_PROFILE=""
 POSTINSTALL_LAYERS=""
 
+# Skip bsddialog's ncurses screens and use plain read()-driven prompts
+# instead (needed for serial-console-only targets, e.g. the test-vm harness).
+FORCE_PLAIN_PROMPTS="0"
+
 # ---- Optional override file -----------------------------------------------
 [ -f "${SCRIPT_DIR}/config.sh" ] && . "${SCRIPT_DIR}/config.sh"
 
@@ -223,7 +227,7 @@ render_installerconfig() {
         -v prl="$PERMIT_ROOT_LOGIN" -v dh="$DEFAULT_HOSTNAME" -v du="$DEFAULT_ADMIN_USER" \
         -v de="$DEFAULT_ENCRYPT_DISK" -v pkgbr="$PKG_REPO_BRANCH" \
         -v ssh_file="$tmpdir/ssh_keys" -v hw_file="$tmpdir/hardware" \
-        -v post_file="$tmpdir/postinstall" '
+        -v post_file="$tmpdir/postinstall" -v plain="$FORCE_PLAIN_PROMPTS" '
     function slurp(fn,  line, out) {
         out=""
         while ((getline line < fn) > 0) out = out line "\n"
@@ -242,6 +246,7 @@ render_installerconfig() {
         gsub(/@@DEFAULT_ADMIN_USER@@/,   du)
         gsub(/@@DEFAULT_ENCRYPT_DISK@@/, de)
         gsub(/@@PKG_REPO_BRANCH@@/,      pkgbr)
+        gsub(/@@FORCE_PLAIN_PROMPTS@@/,  plain)
         if (index($0, "@@SSH_AUTHORIZED_KEYS@@")) { printf "%s", slurp(ssh_file);  next }
         if (index($0, "@@HARDWARE_SETUP@@"))      { printf "%s", slurp(hw_file);   next }
         if (index($0, "@@POSTINSTALL_SETUP@@"))   { printf "%s", slurp(post_file); next }
